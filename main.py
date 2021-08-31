@@ -1,12 +1,26 @@
+from os import PathLike
 import requests
+import json
+import codecs
 
+file    = ".config"
+content = open(file).read()
+config  = eval(content)
 
-API_TOKEN_BOXBERRY  = '1'
-API_ID_YANDEX       = '11-'
-API_TOKEN_YANDEX    = '2'
+API_TOKEN_BOXBERRY      = config['API_TOKEN_BOXBERRY']
+API_OAUTH_ID_YANDEX     = config['API_OAUTH_ID_YANDEX']
+API_OAUTH_TOKEN_YANDEX  = config['API_OAUTH_TOKEN_YANDEX']
+API_CAMPAIGN_ID_YANDEX  = config['API_CAMPAIGN_ID_YANDEX']
+CITY_NAME               = config['CITY_NAME'].encode('cp1251').decode('utf-8')
+ZONE_NUMBER             = int(config['ZONE_NUMBER'])
 
+DELIVER_BOXBERRY_ID = 106
 
-def get_city_code(city_name):
+ZONE_1 = ['Адлер', 'Арзамас', 'Ижевск', 'Уфа', 'Сызрань', 'Киров', 'Самара', 'Орёл', 'Орел']
+ZONE_2 = ['Зона_2']
+ZONE_3 = ['Зона_3']
+
+def get_boxberry_city_code(city_name):
 
     URL_GET_CITIES = f'https://api.boxberry.ru/json.php?token={API_TOKEN_BOXBERRY}&method=ListCities&CountryCode=643'
 
@@ -17,10 +31,15 @@ def get_city_code(city_name):
     for item in response.json():
         all_cities[item['Name']] = item['Code']
 
-    return all_cities[city_name]
+    try:
+        return all_cities[city_name]
+    except KeyError:
+        print(f'В Boxberry отсутствуют точки в городе {city_name}')
+        print('=' * 100)
+        return -1
 
 
-def get_city_data(city_code):
+def get_boxberry_city_data(city_code):
 
     url = f'https://api.boxberry.ru/json.php?token={API_TOKEN_BOXBERRY}&method=ListPoints&prepaid=1&CityCode={city_code}&CountryCode=643'
 
@@ -76,62 +95,123 @@ def get_format_day(str):
         return 'SATURDAY'
     elif str == 'вс':
         return 'SUNDAY'
-    #print(f'WRONG FORMAT -> {str}')
     return -1
     
+def get_format_phone(str):
+    if str[1] == '-':
+        return f'+{str[0]} ({str[2:5]}) {str[6:]}'
+    return f'{str[:2]} {str[2:7]} {str[7:]}'
 
-
-def get_yndx_type(json, deliver_id): #deliver_id???
+def get_yandex_type(json, city_code):
     all_items = []
     for item in json:
         type = 'DEPOT'
         if item['TypeOfOffice'] == 'СПВЗ':
             type = 'MIXED'
 
-        coords = item['GPS'].split(',')
-
         sheduleItems = get_shedule_items(item['WorkShedule'])
-        
+
         if len(item['AddressReduce']) == 0: continue
         elif sheduleItems == -1: continue
+
+        rule = []
+        rule.append({
+            'cost'              : float(0),
+            'minDeliveryDays'   : int(item['DeliveryPeriod']),
+            'maxDeliveryDays'   : int(item['DeliveryPeriod']),
+            'deliveryServiceId' : int(DELIVER_BOXBERRY_ID)
+        })
+
 
         all_items.append({
             'name'              : item['Name'],
             'type'              : type,
-            'coords'            : ', '.join([coords[0], coords[1]]),
+            'coords'            : item['GPS'],
             'address'           : {
-                'regionId'          : item['CityCode'],
+                'regionId'          : city_code,
                 'street'            : item['AddressReduce'].split(',')[0],
                 'number'            : item['AddressReduce'].split(',')[1],
                 'additional'        : item['TripDescription']
             },
-            'phones'            : [item['Phone']],
+            'phones'            : [get_format_phone(item['Phone'])],
             'workingSchedule'   : {
                 'scheduleItems'     : sheduleItems,
             },
-            'deliveryRules'     : {
-                'cost'              : 0,
-                'minDeliveryDays'   : item['DeliveryPeriod'],
-                'minDeliveryDays'   : item['DeliveryPeriod'],
-                'deliveryServiceId' : deliver_id
-            },
+            'deliveryRules'     : rule,
         })
 
     return all_items
 
 
+def upload_point_yandex(items):
+    url = f'https://api.partner.market.yandex.ru/v2/campaigns/{API_CAMPAIGN_ID_YANDEX}/outlets.json'
 
-name = 'Москва'
-"""
-city_code = get_city_code(name)
-data = get_city_data(city_code)
-all_items = get_yndx_type(data, 123)
-"""
+    headers = {
+        'Authorization': f'OAuth oauth_token={API_OAUTH_TOKEN_YANDEX}, oauth_client_id={API_OAUTH_ID_YANDEX}',
+        'Content-Type' : 'application/json'
+    }
+    response = requests.request("POST", url, headers=headers, data=json.dumps(items[0]))
+    if response.json()['status'] != 'OK': print('Error in request under this msg...')
 
-url = f'https://api.partner.market.yandex.ru/v2/campaigns.json'
-headers = {
-    'Authorization':f'OAuth oauth_token={API_TOKEN_YANDEX}, oauth_client_id={API_ID_YANDEX}'
-}
-print()
-response = requests.request("GET", url, headers=headers)
-print(response.json())
+def delete_point(num): ###################
+    url = f'https://api.partner.market.yandex.ru/v2/campaigns/{API_CAMPAIGN_ID_YANDEX}/outlets/{num}.json'
+
+    headers = {
+        'Authorization': f'OAuth oauth_token={API_OAUTH_TOKEN_YANDEX}, oauth_client_id={API_OAUTH_ID_YANDEX}',
+        'Content-Type' : 'application/json'
+    }
+    response = requests.request("DELETE", url, headers=headers)
+    print(response.json())
+
+def get_city_code_yandex(name):
+    url = f'https://api.partner.market.yandex.ru/v2/regions.json?name={name}'
+
+    headers = {
+        'Authorization': f'OAuth oauth_token={API_OAUTH_TOKEN_YANDEX}, oauth_client_id={API_OAUTH_ID_YANDEX}',
+        'Content-Type' : 'application/json'
+    }
+    data = requests.request("GET", url, headers=headers).json()
+    
+    return data['regions'][0]['id']
+
+def load_all_points(all_zones = [CITY_NAME]):
+    print('Запуск...')
+
+    for city_name in all_zones:
+        print(f'Начинается загрузка ПВЗ из города: {city_name}')
+        city_code = get_boxberry_city_code(city_name)
+        if city_code == -1: continue
+
+        print('Получение данных из Boxberry...')
+        data = get_boxberry_city_data(city_code)
+        print(f'Получено {len(data)} элементов')
+
+        city_code_yndx = int(get_city_code_yandex(city_name))
+
+        print('Преобразование элементов к формату Яндекса...')
+        all_items = get_yandex_type(data, city_code_yndx)
+        print(f'Преобразовано {len(all_items)}. {len(data) - len(all_items)} элементов были записаны в Boxberry некорректно.')
+
+        print('Начало загрузки ПВЗ в Яндекс...')
+        for i in range(1): ##########
+            upload_point_yandex([all_items[i]])
+            print(f"Загружена {i+1} точка под названием: {all_items[i]['name']}")
+        
+        print('=' * 100)
+
+    print('Все ПВЗ загружены.')
+
+def main():
+    #for i in range(328968832, 328968836):
+    #    delete_point(i)
+
+    if   ZONE_NUMBER == 1: load_all_points(all_zones=ZONE_1)
+    elif ZONE_NUMBER == 2: load_all_points(all_zones=ZONE_2)
+    elif ZONE_NUMBER == 3: load_all_points(all_zones=ZONE_3)
+    else:                  load_all_points()
+    
+
+
+if __name__ == '__main__':
+    main()
+
