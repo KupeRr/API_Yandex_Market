@@ -213,18 +213,22 @@ def get_yandex_type(json, city_code, already_loads_points):
             print(f"ПВЗ с именем {item['Name']} уже загружена.")
             continue
 
-        type = 'DEPOT'
-        if item['TypeOfOffice'] == 'СПВЗ':
-            type = 'MIXED'
-
         sheduleItems = get_shedule_items(item['WorkShedule'])
 
         if len(item['AddressReduce']) == 0: continue
         elif sheduleItems == -1: continue
 
+        coords = item['GPS'].split(',')
+
+        cost = 0
+
+        if item['CityName'] in ZONE_1 or item['CityName'] in ZONE_2: cost = 49
+        elif item['CityName'] in ZONE_3: cost = 799
+
+
         rule = []
         rule.append({
-            'cost'              : float(0),
+            'cost'              : cost,
             'minDeliveryDays'   : int(item['DeliveryPeriod']),
             'maxDeliveryDays'   : int(item['DeliveryPeriod']),
             'deliveryServiceId' : int(DELIVER_BOXBERRY_ID)
@@ -233,15 +237,18 @@ def get_yandex_type(json, city_code, already_loads_points):
         phone_number = get_format_phone(item['Phone'])
         if phone_number == -1: continue
 
+        descr = item['TripDescription']
+        if len(descr) > 250: descr = descr[:251]
+
         all_items.append({
             'name'              : item['Name'],
-            'type'              : type,
-            'coords'            : item['GPS'],
+            'type'              : 'DEPOT',
+            'coords'            : ', '.join([coords[1], coords[0]]),
             'address'           : {
                 'regionId'          : city_code,
                 'street'            : item['AddressReduce'].split(',')[0],
                 'number'            : item['AddressReduce'].split(',')[1],
-                'additional'        : item['TripDescription']
+                'additional'        : descr
             },
             'phones'            : [phone_number],
             'workingSchedule'   : {
@@ -271,14 +278,39 @@ def upload_point_yandex(data):
         response = requests.request("POST", url, headers=headers, data=json.dumps(data[i]))
         print(f"Загружена {i+1} точка под названием: [{data[i]['name']}]")
     
-    if response.json()['status'] != 'OK': print('Error in request under this msg...')
+    try:
+        if response.json()['status'] != 'OK': print('Error in request under this msg...')
+    except UnboundLocalError:
+        print('Все ПВЗ уже загружены.')
 
 
-def get_city_code_yandex(name):
+def find_necessary_code(json, area, deep):
+    """
+    The function finds the ID of the desired city by the name of the region among cities with the same name
+
+    @param json - part of json file
+    @param area - the area in which the city is located
+    @param deep - the file level at which the script is now
+    """
+    
+    if json['type'] == 'REPUBLIC' and json['name'].split(' ')[0] == area: return 1 
+    else:
+        try:
+            retrieved = find_necessary_code(json['parent'], area, deep + 1)
+            if retrieved == 1:
+                if deep == 0: return json['id']
+                else: return 1
+            else: return -1
+        except KeyError: return -1
+        
+
+
+def get_city_code_yandex(name, area):
     """
     The function returns the city ID by its name from the Yandex API
 
     @param name - city name
+    @param area - the area in which the city is located
     """
 
     url = f'https://api.partner.market.yandex.ru/v2/regions.json?name={name}'
@@ -289,7 +321,13 @@ def get_city_code_yandex(name):
     }
     data = requests.request("GET", url, headers=headers).json()
     
-    return data['regions'][0]['id']
+    code = -1
+    
+    for item in data['regions']:        
+        code = find_necessary_code(item, area, 0)
+        if code != -1: break
+
+    return code
 
 
 ##########################################################################################################
@@ -320,7 +358,7 @@ def load_all_points(all_zones = [CITY_NAME]):
         data = get_boxberry_city_data(city_code)
         print(f'Получено {len(data)} элементов')
 
-        city_code_yndx = int(get_city_code_yandex(city_name))
+        city_code_yndx = int(get_city_code_yandex(city_name, data[0]['Area']))
 
         print('Преобразование элементов к формату Яндекса...')
         all_items = get_yandex_type(data, city_code_yndx, already_loads_points)
