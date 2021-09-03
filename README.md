@@ -8,3 +8,4 @@ To work it is necessary to fill the configuration file, namely:
 - Fill out the necessary data to access Boxberry and Yandex
 - Specify the desired city for downloading. Also, in case you want to load exactly the city in the zone variable you must specify the value [-1]
 - If you want to load the whole zone, just specify its number instead of [-1]
+- Specify the error of the delivery service in days
