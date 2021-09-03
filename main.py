@@ -23,6 +23,7 @@ API_OAUTH_TOKEN_YANDEX  = config['API_OAUTH_TOKEN_YANDEX']
 API_CAMPAIGN_ID_YANDEX  = config['API_CAMPAIGN_ID_YANDEX']
 CITY_NAME               = config['CITY_NAME'].encode('cp1251').decode('utf-8')
 ZONE_NUMBER             = int(config['ZONE_NUMBER'])
+NUM_DAYS                = int(config['NUM_DAYS'])
 
 DELIVER_BOXBERRY_ID = 106
 
@@ -230,7 +231,7 @@ def get_yandex_type(json, city_code, already_loads_points):
         rule.append({
             'cost'              : cost,
             'minDeliveryDays'   : int(item['DeliveryPeriod']),
-            'maxDeliveryDays'   : int(item['DeliveryPeriod']),
+            'maxDeliveryDays'   : int(item['DeliveryPeriod']) + NUM_DAYS,
             'deliveryServiceId' : int(DELIVER_BOXBERRY_ID)
         })
 
@@ -292,7 +293,7 @@ def find_necessary_code(json, area, deep):
     @param area - the area in which the city is located
     @param deep - the file level at which the script is now
     """
-    
+
     if json['type'] == 'REPUBLIC' and json['name'].split(' ')[0] == area: return 1 
     else:
         try:
