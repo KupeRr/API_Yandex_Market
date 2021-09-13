@@ -21,9 +21,19 @@ ZONE_3 = [  'Артём', 'Благовещенск', 'Братск', 'Влад�
             'Петропавловск-Камчатский', 'Уссурийск', 'Хабаровск', 'Хасавюрт', 'Чита', 'Южно-Сахалинск', 'Якутск']
 
 
+BOXBERRY_SERVICE_ID = 106
+DELIVER_CDEK_ID = 51
+
+
 def get_all_points_yandex(campaign_id_yandex, oauth_token_yandex, oauth_id_yandex):
     """
     The function returns the names of all existing delivery points from the current campaign in Yandex
+
+    @param campaign_id_yandex   - Yandex campaign ID
+    @param oauth_token_yandex   - token for access to Yandex API
+    @param oauth_id_yandex      - application ID in Yandex
+
+    @return set of data in Yandex format about already uploaded points
     """
 
     url = f'https://api.partner.market.yandex.ru/v2/campaigns/{campaign_id_yandex}/outlets.json'
@@ -44,8 +54,6 @@ def get_all_points_yandex(campaign_id_yandex, oauth_token_yandex, oauth_id_yande
             print(f'Загружены данные о {len(result)} точках')
             print('-'*100)
 
-            return result ### [!!!] Строка для тестирования
-
             next_page_token = data['paging']['nextPageToken']
 
             url = f'https://api.partner.market.yandex.ru/v2/campaigns/{campaign_id_yandex}/outlets.json?page_token={next_page_token}'
@@ -56,11 +64,17 @@ def get_all_points_yandex(campaign_id_yandex, oauth_token_yandex, oauth_id_yande
         except KeyError:
             return result
 
+
 def get_city_code_yandex(name, area, oauth_token_yandex, oauth_id_yandex):
     """
     The function returns the city ID by its name from the Yandex API
-    @param name - city name
-    @param area - the area in which the city is located
+
+    @param name                 - city name
+    @param area                 - the area in which the city is located
+    @param oauth_token_yandex   - token for access to Yandex API
+    @param oauth_id_yandex      - application ID in Yandex
+
+    @return city ID in the Yandex system
     """
 
     url = f'https://api.partner.market.yandex.ru/v2/regions.json?name={name}'
@@ -79,121 +93,36 @@ def get_city_code_yandex(name, area, oauth_token_yandex, oauth_id_yandex):
 
     return code
 
-def __get_yandex_type_by_cdek(json, city_code, already_loaded_points, rule):
-    if rule == {}: return []
-
-    all_items = []
-    for item in json:
-        if f"{item['name']} [{item['code']}]" in already_loaded_points: 
-            print(f"ПВЗ с именем {item['name']} уже загружена.")
-            continue
-
-        sheduleItems = __get_shedule_items(item['workTimeYList'], 'cdek')
-
-        if sheduleItems == -1: continue    
-
-        phone_number = __get_format_phone(item['phoneDetailList'][0]['number'], 'cdek')
-
-        descr = item['fullAddress']
-        if len(descr) > 250: descr = descr[:251]
-
-        all_items.append({
-            'name'              : f"{item['name']} [{item['code']}]",
-            'type'              : 'DEPOT',
-            'coords'            : ', '.join([item['coordX'], item['coordY']]),
-            'address'           : {
-                'regionId'          : city_code,
-                'street'            : item['address'].split(',')[0],
-                'number'            : item['address'].split(',')[1],
-                'additional'        : descr
-            },
-            'phones'            : [phone_number],
-            'workingSchedule'   : {
-                'scheduleItems'     : sheduleItems,
-            },
-            'deliveryRules'     : rule,
-        })
-
-        return all_items
-
-def __get_yandex_type_by_boxberry(json, city_code, already_loaded_points):
-    print('Преобразование элементов к формату Яндекса...')
-
-    all_items = []
-    for item in json:
-        try:
-            if item['Name'] in already_loaded_points: 
-                print(f"ПВЗ с именем {item['Name']} уже загружена.")
-                continue
-        except KeyError:
-            print('Данные о данном городе отсутствуют в Boxberry')
-            return []
-
-        sheduleItems = __get_shedule_items(item['WorkShedule'], 'boxberry')
-
-        if len(item['AddressReduce']) == 0: continue
-        elif sheduleItems == -1: continue
-
-        coords = item['GPS'].split(',')
-
-        cost = 0
-
-        if item['CityName'] in ZONE_1 or item['CityName'] in ZONE_2: cost = 49
-        elif item['CityName'] in ZONE_3: cost = 799
-
-
-        rule = []
-        rule.append({
-            'cost'              : cost,
-            'minDeliveryDays'   : int(item['DeliveryPeriod']),
-            'maxDeliveryDays'   : int(item['DeliveryPeriod']) + 1,
-            'deliveryServiceId' : 106
-        })
-
-        phone_number = __get_format_phone(item['Phone'], 'boxberry')
-        if phone_number == -1: continue
-
-        descr = item['TripDescription']
-        if len(descr) > 250: descr = descr[:251]
-
-        all_items.append({
-            'name'              : item['Name'],
-            'type'              : 'DEPOT',
-            'coords'            : ', '.join([coords[1], coords[0]]),
-            'address'           : {
-                'regionId'          : city_code,
-                'street'            : item['AddressReduce'].split(',')[0],
-                'number'            : item['AddressReduce'].split(',')[1],
-                'additional'        : descr
-            },
-            'phones'            : [phone_number],
-            'workingSchedule'   : {
-                'scheduleItems'     : sheduleItems,
-            },
-            'deliveryRules'     : rule,
-        })
-
-    return all_items
 
 def get_yandex_type(service_name, data, city_code, already_loaded_points, deliver_rule = {}):
     """
-    The function converts the data received from Boxberry to Yandex format
+    The function converts data from sender format to Yandex format
     It also checks if the current delivery point already exists in the Yandex campaign
-    @param json                 - data from Boxberry
-    @param city_code            - city ID from Yandex
-    @param already_loads_points - Delivery points already added to Yandex
+
+    @service_name                   -   name of sender company
+    @param data                     -   data about points
+    @param city_code                -   Yandex city ID
+    @param already_loaded_points    -   set of points already loaded
+    @param deliver_rule             -   terms of delivery of the product from the sender
+                                        Mandatory parameter for CDEK
+
+    @return returns the list of these points in Yandex format
     """
 
     if len(data) == 0: return []
 
     if(service_name.lower() == 'boxberry'): return __get_yandex_type_by_boxberry(data, city_code, already_loaded_points)
-    elif(service_name.lower() == 'cdek'): return __get_yandex_type_by_cdek(data, city_code, already_loaded_points, deliver_rule)
+    elif(service_name.lower() == 'cdek'):   return __get_yandex_type_by_cdek(data, city_code, already_loaded_points, deliver_rule)
     
 
 def upload_points_yandex(data, campaign_id_yandex, oauth_token_yandex, oauth_id_yandex):
     """
     The function uploads data about delivery points to Yandex
-    @param data - data about delivery points
+
+    @param data                 - data about delivery points
+    @param campaign_id_yandex   - campaign ID from Yandex
+    @param oauth_token_yandex   - token for access to Yandex API
+    @param oauth_id_yandex      - application ID in Yandex
     """
 
     url_dbs = f'https://api.partner.market.yandex.ru/v2/campaigns/{campaign_id_yandex}/outlets.json'
@@ -212,12 +141,16 @@ def upload_points_yandex(data, campaign_id_yandex, oauth_token_yandex, oauth_id_
         except UnboundLocalError:
             print('Все ПВЗ уже загружены.')
 
+
 def __find_necessary_code(json, area, deep):
     """
     The function finds the ID of the desired city by the name of the region among cities with the same name
+
     @param json - part of json file
     @param area - the area in which the city is located
     @param deep - the file level at which the script is now
+    
+    @return node id from the json file which contains the required city id
     """
  
     if json['type'] == 'REPUBLIC' and (json['name'].split(' ')[0] == area or 
@@ -231,10 +164,15 @@ def __find_necessary_code(json, area, deep):
             else: return -1
         except KeyError: return -1
 
+
 def __get_format_phone(phone_number, service):
     """
-    The function converts the phone number from the Boxberry standard to the Yandex standard
+    The function converts the phone number from the sender standard to the Yandex standard
+
     @param phone_number - phone number in Boxberry standart
+    @param service      - sender's service name
+
+    @return phone number in Yandex format
     """
 
     if(service.lower() == 'cdek'): 
@@ -252,16 +190,15 @@ def __get_format_phone(phone_number, service):
 
     return -1
 
+
 def __get_shedule_items(source_shedule, service):
     """
-    The function converts the delivery point schedule from Boxberry format to Yandex format
+    The function converts the delivery point schedule from sender format to Yandex format
 
-    @param shedule_box - The line that contains information about the schedule
-    @param service - name of company that deliver product to point. Example: "cdek"
+    @param source_shedule   - The line that contains information about the schedule
+    @param service          - sender's service name
 
-    @note The current version supports 2 delivery firms:
-            - cdek
-            - boxberry
+    @return delivery shedule in Yandex format
     """
    
     result = []
@@ -326,10 +263,15 @@ def __get_shedule_items(source_shedule, service):
 
     return result
 
+
 def __get_format_day(day_of_week, service):
     """
-    The function converts the day of the week from the Boxberry standard to the Yandex standard
-    @param day_of_week - value of current day
+    The function converts the day of the week from the sender standard to the Yandex standard
+
+    @param day_of_week  - value of current day
+    @param service      - sender's service name
+
+    @return day in Yandex format
     """
 
     if(service.lower() == 'cdek'):
@@ -368,3 +310,121 @@ def __get_format_day(day_of_week, service):
 
     return -1
 
+
+def __get_yandex_type_by_cdek(data, city_code, already_loaded_points, deliver_rule):
+    """
+    The function converts point data from CDEK format to Yandex format
+
+    @param data                     - data about points
+    @param city_code                - Yandex city ID
+    @param already_loaded_points    - set of points already loaded
+    @param deliver_rule             - terms of delivery of the product from the sender
+
+    @return returns the list of these points in Yandex format
+    """
+
+    if deliver_rule == {}: return []
+
+    all_items = []
+    for item in data:
+        if f"{item['name']} [{item['code']}]" in already_loaded_points: 
+            print(f"ПВЗ с именем {item['name']} уже загружена.")
+            continue
+
+        sheduleItems = __get_shedule_items(item['workTimeYList'], 'cdek')
+
+        if sheduleItems == -1: continue    
+
+        phone_number = __get_format_phone(item['phoneDetailList'][0]['number'], 'cdek')
+
+        descr = item['fullAddress']
+        if len(descr) > 250: descr = descr[:251]
+
+        all_items.append({
+            'name'              : f"{item['name']} [{item['code']}]",
+            'type'              : 'DEPOT',
+            'coords'            : ', '.join([item['coordX'], item['coordY']]),
+            'address'           : {
+                'regionId'          : city_code,
+                'street'            : item['address'].split(',')[0],
+                'number'            : item['address'].split(',')[1],
+                'additional'        : descr
+            },
+            'phones'            : [phone_number],
+            'workingSchedule'   : {
+                'scheduleItems'     : sheduleItems,
+            },
+            'deliveryRules'     : deliver_rule,
+        })
+
+        return all_items
+
+
+def __get_yandex_type_by_boxberry(data, city_code, already_loaded_points):
+    """
+    The function converts point data from Boxberry format to Yandex format
+
+    @param data                     - data about points
+    @param city_code                - Yandex city ID
+    @param already_loaded_points    - set of points already loaded
+    
+    @return returns the list of these points in Yandex format
+    """
+
+    print('Преобразование элементов к формату Яндекса...')
+
+    all_items = []
+    for item in data:
+        try:
+            if item['Name'] in already_loaded_points: 
+                print(f"ПВЗ с именем {item['Name']} уже загружена.")
+                continue
+        except KeyError:
+            print('Данные о данном городе отсутствуют в Boxberry')
+            return []
+
+        sheduleItems = __get_shedule_items(item['WorkShedule'], 'boxberry')
+
+        if len(item['AddressReduce']) == 0: continue
+        elif sheduleItems == -1: continue
+
+        coords = item['GPS'].split(',')
+
+        cost = 0
+
+        if item['CityName'] in ZONE_1 or item['CityName'] in ZONE_2: cost = 49
+        elif item['CityName'] in ZONE_3: cost = 799
+
+
+        rule = []
+        rule.append({
+            'cost'              : cost,
+            'minDeliveryDays'   : int(item['DeliveryPeriod']),
+            'maxDeliveryDays'   : int(item['DeliveryPeriod']) + 1,
+            'deliveryServiceId' : BOXBERRY_SERVICE_ID
+        })
+
+        phone_number = __get_format_phone(item['Phone'], 'boxberry')
+        if phone_number == -1: continue
+
+        descr = item['TripDescription']
+        if len(descr) > 250: descr = descr[:251]
+
+        all_items.append({
+            'name'              : item['Name'],
+            'type'              : 'DEPOT',
+            'coords'            : ', '.join([coords[1], coords[0]]),
+            'address'           : {
+                'regionId'          : city_code,
+                'street'            : item['AddressReduce'].split(',')[0],
+                'number'            : item['AddressReduce'].split(',')[1],
+                'additional'        : descr
+            },
+            'phones'            : [phone_number],
+            'workingSchedule'   : {
+                'scheduleItems'     : sheduleItems,
+            },
+            'deliveryRules'     : rule,
+        })
+
+    return all_items
