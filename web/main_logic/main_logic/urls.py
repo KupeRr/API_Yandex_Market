@@ -8,6 +8,7 @@ from main_window import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', views.home),
 
     re_path(r'^products/$', views.products),
     re_path(r'^users/$', views.users),
@@ -15,7 +16,6 @@ urlpatterns = [
     re_path(r'^users/(?P<id>\d+)/(?P<name>\D+)/', views.users),
 
     #TODO What's better?
-    #'path' versions
     #path('products/', views.products),
     #path('users/', views.users),
     #path('products/<int:productid>/', views.products),
