@@ -2,7 +2,7 @@ import yandex.loader as yandex
 import cdek.loader as cdek
 import boxberry.loader as boxberry
 
-file    = ".config"
+file    = "1.config" #UNCOMM#
 content = open(file).read()
 config  = eval(content)
 
@@ -131,7 +131,8 @@ def main():
     init_data    = print_choose_mode()
     service_name = print_choose_service()
 
-    already_loaded_points = yandex.get_all_points_yandex(API_CAMPAIGN_ID_YANDEX, API_OAUTH_TOKEN_YANDEX, API_OAUTH_ID_YANDEX)
+    #UNCOMM# already_loaded_points = yandex.get_all_points_yandex(API_CAMPAIGN_ID_YANDEX, API_OAUTH_TOKEN_YANDEX, API_OAUTH_ID_YANDEX)
+    already_loaded_points = {}
 
     all_points_format_yandex_json = []
     if len(init_data) == 1:
@@ -154,10 +155,8 @@ def main():
         print('Внимание. К формату Яндекса не преобразовано ни одной точки')
 
     else:
-        yandex.upload_points_yandex(all_points_format_yandex_json, API_CAMPAIGN_ID_YANDEX, API_OAUTH_TOKEN_YANDEX, API_OAUTH_ID_YANDEX)
+        #UNCOMM# yandex.upload_points_yandex(all_points_format_yandex_json, API_CAMPAIGN_ID_YANDEX, API_OAUTH_TOKEN_YANDEX, API_OAUTH_ID_YANDEX)
         print('Программа успешно завершила работу')
-
-    input('Нажмите Enter, чтобы закрыть программу...')
 
 if __name__ == '__main__':
     main()

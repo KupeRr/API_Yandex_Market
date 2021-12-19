@@ -1,5 +1,25 @@
 from tkinter import *
 
+ZONE_1 = [  'Адлер', 'Альметьевск', 'Арзамас', 'Астрахань', 'Батайск', 'Белгород', 'Бердск', 'Брянск', 'Великий Новгород', 'Владимир', 
+            'Волгоград', 'Волжский', 'Воронеж', 'Дзержинск', 'Димитровград', 'Екатеринбург', 'Елец', 'Железногорск', 'Иваново', 'Ижевск', 
+            'Йошкар-Ола', 'Казань', 'Калуга', 'Каменск-Уральский', 'Киров', 'Ковров', 'Колпино', 'Копейск', 'Кострома', 'Краснодар', 
+            'Красноярск', 'Курск', 'Липецк', 'Миасс', 'Москва', 'Московская область', 'Набережные Челны', 'Нижнекамск', 'Нижний Новгород', 
+            'Новокуйбышевск', 'Новомосковск', 'Новороссийск', 'Новосибирск', 'Новочебоксарск', 'Новочеркасск', 'Новошахтинск', 'Обнинск', 
+            'Омск', 'Орёл', 'Оренбург', 'Пенза', 'Первоуральск', 'Пермь', 'Пушкин', 'Ростов-на-Дону', 'Рыбинск', 'Рязань', 'Самара', 
+            'Санкт-Петербург', 'Саратов', 'Смоленск', 'Сочи', 'Сызрань', 'Таганрог', 'Тамбов', 'Тверь', 'Тольятти', 'Тула', 'Тюмень', 
+            'Ульяновск', 'Уфа', 'Чебоксары', 'Челябинск', 'Шахты', 'Энгельс', 'Ярославль']
+
+ZONE_2 = [  'Абакан', 'Ангарск', 'Армавир', 'Архангельск', 'Ачинск', 'Балаково', 'Барнаул', 'Березники', 'Бийск', 'Владикавказ', 'Волгодонск', 
+            'Вологда', 'Грозный', 'Дербент', 'Евпатория', 'Ессентуки', 'Златоуст', 'Иркутск', 'Калининград', 'Камышин', 'Каспийск', 'Кемерово', 
+            'Керчь', 'Кисловодск', 'Курган', 'Кызыл', 'Магнитогорск', 'Майкоп', 'Махачкала', 'Мурманск', 'Муром', 'Назрань', 'Нальчик', 
+            'Невинномысск', 'Нефтекамск', 'Нефтеюганск', 'Нижневартовск', 'Нижний Тагил', 'Новокузнецк', 'Октябрьский', 'Орск', 'Петрозаводск', 
+            'Прокопьевск', 'Псков', 'Пятигорск', 'Рубцовск', 'Салават', 'Саранск', 'Севастополь', 'Северодвинск', 'Северск', 'Симферополь', 
+            'Ставрополь', 'Старый Оскол', 'Стерлитамак', 'Сургут', 'Сыктывкар', 'Тобольск', 'Томск', 'Улан-Удэ', 'Череповец', 'Черкесск', 'Элиста']
+
+ZONE_3 = [  'Артём', 'Благовещенск', 'Братск', 'Владивосток', 'Комсомольск-на-Амуре', 'Находка', 'Новый Уренгой', 'Норильск', 'Ноябрьск', 
+            'Петропавловск-Камчатский', 'Уссурийск', 'Хабаровск', 'Хасавюрт', 'Чита', 'Южно-Сахалинск', 'Якутск']
+
+
 class Checkbar(Frame):
      def __init__(self, parent=None, picks=[], side=LEFT, anchor=W):
         Frame.__init__(self, parent)
@@ -12,20 +32,24 @@ class Checkbar(Frame):
         def state(self):
             return map((lambda var: var.get()), self.vars)
 
+def get_city_names():
+    info_window = Tk()
+    print(str(ZONE_1))
+
 if __name__ == '__main__':
-    root = Tk()
-    root.title('*Name*')
+    main_window = Tk()
+    main_window.title('*Name*')
     #root.geometry('450x300')
    
-    label_del = Label(root, text='Выберите фирму доставки').pack(side=TOP, fill=X)
+    label_del = Label(main_window, text='Выберите фирму доставки').pack(side=TOP, fill=X)
 
-    delivery = Checkbar(root, ['Boxberry', 'CDEK'])
+    delivery = Checkbar(main_window, ['Boxberry', 'CDEK'])
     delivery.pack(side=TOP,  fill=X)
     delivery.config(relief=GROOVE, bd=2)
 
-    label_city = Label(root, text='Выберите зону доставки').pack(side=TOP, fill=X)
+    label_city = Label(main_window, text='Выберите зону доставки').pack(side=TOP, fill=X)
 
-    city_zone = Checkbar(root, ['1', '2', '3', 'Один город'])
+    city_zone = Checkbar(main_window, ['1', '2', '3', 'Один город'])
     city_zone.pack(side=TOP,  fill=X)
     city_zone.config(relief=GROOVE, bd=2)
 
@@ -34,8 +58,10 @@ if __name__ == '__main__':
         print(list(delivery.state()))
         print(list(city_zone.state()))
 
-    Button(root, text='Выйти', command=root.quit).pack(side=RIGHT)
-    Button(root, text='Загрузить', command=allstates).pack(side=RIGHT)
+    Button(main_window, text='Выйти', command=main_window.quit).pack(side=RIGHT)
+    Button(main_window, text='Загрузить', command=allstates).pack(side=RIGHT)
+    Button(main_window, text='Подробнее', command=get_city_names).pack(side=RIGHT)
 
-    root.resizable(width=False, height=False)
-    root.mainloop()
+
+    main_window.resizable(width=False, height=False)
+    main_window.mainloop()
