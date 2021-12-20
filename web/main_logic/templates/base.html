@@ -1,0 +1,13 @@
+<html>
+{% load static %}
+<head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <title>{% block title %}Default title{% endblock title %}</title>
+</head>
+<body>
+    <h1>{% block header %}{% endblock header %}</h1>
+    {% block content%}{% endblock content %}
+    <div>{% now "N j, Y, P" %}</div>
+</body>
+</html>

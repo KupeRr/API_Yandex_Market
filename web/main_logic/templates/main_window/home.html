@@ -1,15 +1,8 @@
-{% load static %}
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <link rel="stylesheet" href="{%static 'css/style.css'%}">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>main_window</title>
-</head>
-<body>
-    <h1>{{ header }}</h1>
+{% extends "base.html" %}
+{% block title %} main_window {% endblock title %}
+{% block header %} {{header}} {% endblock header %}
+{% block content %}
     <p>Name: {{ user.name}} Age: {{user.age}}</p>
     <p>Address: ул. {{address.0}}, д. {{address.1}}, кв. {{address.2}}</p>
     <p>Langs: {{langs.0}}, {{langs.1}}</p>
-</body>
-</html>
+{% endblock content %}
