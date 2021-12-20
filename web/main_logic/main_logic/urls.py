@@ -9,6 +9,7 @@ from main_window import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home),
+    re_path('user_form/', views.user_form),
 
     re_path(r'^products/$', views.products),
     re_path(r'^users/$', views.users),
