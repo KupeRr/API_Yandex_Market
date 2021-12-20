@@ -25,9 +25,13 @@ def home(request):
 
 def user_form(request):
     if request.method == "POST":
-        name = request.POST.get("name")
-        age = request.POST.get("age")
-        return HttpResponse(f"<h2>Ur input: {name} and {age}</h2>")
+        user_form = UserForm(request.POST)
+        if user_form.is_valid():
+            name = user_form.cleaned_data["name"]
+            age  = user_form.cleaned_data["age"]
+            return HttpResponse(f"<h2>Ur input: {name} and {age}</h2>")
+        else:
+            return HttpResponse("Invalid data")
     else:
         user_form = UserForm()
         return render(request, "user_form.html", {"form":user_form})
